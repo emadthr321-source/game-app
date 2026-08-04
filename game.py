@@ -24,6 +24,10 @@ def load_data():
             d = json.load(f)
             if "gained" not in d:
                 d["gained"] = {g: 0 for g in DEFAULT_DATA["groups"]}
+            if "groups" not in d:
+                d["groups"] = DEFAULT_DATA["groups"]
+            if "eliminated" not in d:
+                d["eliminated"] = []
             return d
     except:
         return DEFAULT_DATA
@@ -74,7 +78,6 @@ rounds_info = {
 
 if is_teacher:
     selected_round = st.selectbox("اختر الجولة الحالية:", list(rounds_info.keys()), index=list(rounds_info.keys()).index(data.get("round", "الجولة 1")))
-    # عند تغيير الجولة من قبل المعلم، يتم تصفير أسماء الطلاب والمقصيين والنقاط لبدء جولة جديدة نظيفة تماماً
     if selected_round != data.get("round"):
         data["round"] = selected_round
         data["groups"] = {g: [] for g in DEFAULT_DATA["groups"]}
@@ -157,7 +160,6 @@ with tab1:
         
         c_confirm, c_cancel = st.columns(2)
         if c_confirm.button("✅ تأكيد الإقصاء وتحويل النقاط للخصم"):
-            # 1. إزالة الطالب وتسجيله مع تحديد اسم الجولة الحالية
             elim_data = data["groups"][src_group].pop(pending["index"])
             data["eliminated"].append({
                 "الجولة": data["round"],
@@ -166,7 +168,6 @@ with tab1:
                 "النقاط المسحوبة": elim_data["points"]
             })
             
-            # 2. توزيع النقاط على المجموعة الفائزة (الخصم)
             target_students = data["groups"][target_group]
             points_to_distribute = elim_data["points"]
             
@@ -176,7 +177,6 @@ with tab1:
                     ts["points"] = round(ts["points"] + share, 1)
                     ts["custom"] = True
             
-            # 3. تسجيل النقاط المكتسبة
             data["gained"][target_group] = round(data["gained"].get(target_group, 0) + points_to_distribute, 1)
             
             save_data(data)
@@ -192,7 +192,11 @@ with tab2:
     
     lost_totals = {g: 0 for g in group_names}
     for item in data.get("eliminated", []):
-        lost_totals[item["المجموعة"]] += item["النقاط المسحوبة"]
+        # التحقق الآمن من المفاتيح لتجنب أي خطأ قديم
+        group_key = item.get("المجموعة") or item.get("group")
+        points_key = item.get("النقاط المسحوبة") if "النقاط المسحوبة" in item else item.get("points", 0)
+        if group_key in lost_totals:
+            lost_totals[group_key] += points_key
     
     gained_totals = data.get("gained", {g: 0 for g in group_names})
 
