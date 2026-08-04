@@ -22,7 +22,6 @@ def load_data():
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             d = json.load(f)
-            # ضمان وجود مفتاح النقاط المكتسبة للتوافق مع التحديثات القديمة
             if "gained" not in d:
                 d["gained"] = {g: 0 for g in DEFAULT_DATA["groups"]}
             return d
@@ -140,7 +139,7 @@ with tab1:
                         save_data(data)
                         st.rerun()
 
-    # --- نافذة الإقصاء وتحويل النقاط ---
+    # --- نافذة الإقصاء وتحويل النقاط للمجموعة الخصم بدقة ---
     if is_teacher and 'pending_elimination' in st.session_state and st.session_state.pending_elimination:
         pending = st.session_state.pending_elimination
         elim_student = pending["student"]
@@ -149,10 +148,11 @@ with tab1:
         st.write("---")
         st.warning(f"⚠️ جاري إقصاء الطالب **{elim_student['name']}** من أسرة ({src_group}) ولديه ({elim_student['points']} نقطة).")
         
-        target_group = st.selectbox("اختر المجموعة الفائزة/الخصم لتوزيع نقاط الطالب عليها بالتساوي:", [g for g in group_names if g != src_group])
+        target_group = st.selectbox("اختر المجموعة الفائزة (الخصم) لتوزيع نقاط الطالب المقصي عليها بالتساوي:", [g for g in group_names if g != src_group])
         
         c_confirm, c_cancel = st.columns(2)
-        if c_confirm.button("✅ تأكيد الإقصاء وتحويل النقاط"):
+        if c_confirm.button("✅ تأكيد الإقصاء وتحويل النقاط للخصم"):
+            # 1. إزالة الطالب من مجموعته الأصلية
             elim_data = data["groups"][src_group].pop(pending["index"])
             data["eliminated"].append({
                 "name": elim_data["name"], 
@@ -160,6 +160,7 @@ with tab1:
                 "points": elim_data["points"]
             })
             
+            # 2. إعادة ضبط وتوزيع النقاط المتبقية لطلاب المجموعة الأصلية بالتساوي
             total_src = len(data["groups"][src_group])
             if total_src > 0:
                 base_p = round(100 / total_src, 1)
@@ -167,16 +168,18 @@ with tab1:
                     if not s.get("custom", False):
                         s["points"] = base_p
 
+            # 3. إضافة نقاط الطالب المقصي وتوزيعها بالتساوي على طلاب المجموعة المستهدفة (الخصم) فقط
             target_students = data["groups"][target_group]
-            bonus = 0
-            if target_students and elim_data["points"] > 0:
-                bonus = round(elim_data["points"] / len(target_students), 1)
+            points_to_distribute = elim_data["points"]
+            
+            if target_students and points_to_distribute > 0:
+                share = round(points_to_distribute / len(target_students), 1)
                 for ts in target_students:
-                    ts["points"] = round(ts["points"] + bonus, 1)
+                    ts["points"] = round(ts["points"] + share, 1)
                     ts["custom"] = True
             
-            # تسجيل النقاط المكتسبة للمجموعة المستهدفة
-            data["gained"][target_group] = round(data["gained"].get(target_group, 0) + elim_data["points"], 1)
+            # 4. تسجيل النقاط المكتسبة في عداد المجموعة الفائزة
+            data["gained"][target_group] = round(data["gained"].get(target_group, 0) + points_to_distribute, 1)
             
             save_data(data)
             st.session_state.pending_elimination = None
@@ -195,7 +198,6 @@ with tab2:
     
     gained_totals = data.get("gained", {g: 0 for g in group_names})
 
-    # عرض جدول الإحصائيات المصغر لكل مجموعة
     stat_cols = st.columns(4)
     for idx, g in enumerate(group_names):
         lost_val = round(lost_totals[g], 1)
