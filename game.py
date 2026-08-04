@@ -10,7 +10,8 @@ LOGO_PATH = "logo.png"
 DEFAULT_DATA = {
     "round": "الجولة 1",
     "groups": {g: [] for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]},
-    "eliminated": []
+    "eliminated": [],
+    "gained": {g: 0 for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]}
 }
 
 def load_data():
@@ -20,7 +21,11 @@ def load_data():
         return DEFAULT_DATA
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            d = json.load(f)
+            # ضمان وجود مفتاح النقاط المكتسبة للتوافق مع التحديثات القديمة
+            if "gained" not in d:
+                d["gained"] = {g: 0 for g in DEFAULT_DATA["groups"]}
+            return d
     except:
         return DEFAULT_DATA
 
@@ -53,11 +58,10 @@ st.sidebar.write("---")
 if st.sidebar.button("🔄 تحديث الشاشة"):
     st.rerun()
 
-# --- زر إعادة الضبط الشامل المحدث والمضمون ---
+# --- زر إعادة الضبط الشامل ---
 if is_teacher:
     st.sidebar.write("### ⚙️ إعدادات التحكم")
     if st.sidebar.button("⚠️ إعادة ضبط اللعبة بالكامل", type="primary"):
-        # كتابة البيانات الافتراضية مباشرة لحذف كل شيء فوراً
         save_data(DEFAULT_DATA)
         st.sidebar.success("تمت إعادة ضبط اللعبة وتصفيرها بنجاح! 🔄")
         st.rerun()
@@ -164,11 +168,15 @@ with tab1:
                         s["points"] = base_p
 
             target_students = data["groups"][target_group]
+            bonus = 0
             if target_students and elim_data["points"] > 0:
                 bonus = round(elim_data["points"] / len(target_students), 1)
                 for ts in target_students:
                     ts["points"] = round(ts["points"] + bonus, 1)
                     ts["custom"] = True
+            
+            # تسجيل النقاط المكتسبة للمجموعة المستهدفة
+            data["gained"][target_group] = round(data["gained"].get(target_group, 0) + elim_data["points"], 1)
             
             save_data(data)
             st.session_state.pending_elimination = None
@@ -179,16 +187,25 @@ with tab1:
             st.rerun()
 
 with tab2:
-    st.subheader("📊 النقاط المفقودة بالإقصاء لكل مجموعة")
-    totals = {g: 0 for g in group_names}
-    for item in data.get("eliminated", []):
-        totals[item["group"]] += item["points"]
+    st.subheader("📊 إحصائيات النقاط المفقودة والمكتسبة لكل مجموعة")
     
-    t_cols = st.columns(4)
-    for idx, (g, pts) in enumerate(totals.items()):
-        t_cols[idx % 4].metric(f"مجموعة {g}", f"{round(pts, 1)} ن مفقودة")
+    lost_totals = {g: 0 for g in group_names}
+    for item in data.get("eliminated", []):
+        lost_totals[item["group"]] += item["points"]
+    
+    gained_totals = data.get("gained", {g: 0 for g in group_names})
 
-    st.write("---")
+    # عرض جدول الإحصائيات المصغر لكل مجموعة
+    stat_cols = st.columns(4)
+    for idx, g in enumerate(group_names):
+        lost_val = round(lost_totals[g], 1)
+        gained_val = round(gained_totals.get(g, 0), 1)
+        with stat_cols[idx % 4]:
+            st.markdown(f"**أسرة {g}**")
+            st.metric("🔴 المفقودة", f"{lost_val} ن")
+            st.metric("🟢 المكتسبة", f"{gained_val} ن")
+            st.write("---")
+
     st.subheader("🚫 قائمة الطلاب المقصيين")
     if data.get("eliminated"):
         st.table(data["eliminated"])
