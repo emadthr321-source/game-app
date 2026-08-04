@@ -139,7 +139,7 @@ with tab1:
                         save_data(data)
                         st.rerun()
 
-    # --- نافذة الإقصاء وتحويل النقاط للمجموعة الخصم بدقة ---
+    # --- نافذة الإقصاء الصحيحة ---
     if is_teacher and 'pending_elimination' in st.session_state and st.session_state.pending_elimination:
         pending = st.session_state.pending_elimination
         elim_student = pending["student"]
@@ -148,11 +148,11 @@ with tab1:
         st.write("---")
         st.warning(f"⚠️ جاري إقصاء الطالب **{elim_student['name']}** من أسرة ({src_group}) ولديه ({elim_student['points']} نقطة).")
         
-        target_group = st.selectbox("اختر المجموعة الفائزة (الخصم) لتوزيع نقاط الطالب المقصي عليها بالتساوي:", [g for g in group_names if g != src_group])
+        target_group = st.selectbox("اختر المجموعة الفائزة (الخصم) لتوزيع نقاط الطالب المقصي عليها بالكامل بالتساوي:", [g for g in group_names if g != src_group])
         
         c_confirm, c_cancel = st.columns(2)
         if c_confirm.button("✅ تأكيد الإقصاء وتحويل النقاط للخصم"):
-            # 1. إزالة الطالب من مجموعته الأصلية
+            # 1. إزالة الطالب نهائياً من مجموعته (تنقص نقاط الأسرة ولا يتم تعويضها تلقائياً)
             elim_data = data["groups"][src_group].pop(pending["index"])
             data["eliminated"].append({
                 "name": elim_data["name"], 
@@ -160,15 +160,9 @@ with tab1:
                 "points": elim_data["points"]
             })
             
-            # 2. إعادة ضبط وتوزيع النقاط المتبقية لطلاب المجموعة الأصلية بالتساوي
-            total_src = len(data["groups"][src_group])
-            if total_src > 0:
-                base_p = round(100 / total_src, 1)
-                for s in data["groups"][src_group]:
-                    if not s.get("custom", False):
-                        s["points"] = base_p
-
-            # 3. إضافة نقاط الطالب المقصي وتوزيعها بالتساوي على طلاب المجموعة المستهدفة (الخصم) فقط
+            # (ملاحظة: تم حذف إعادة توزيع الـ 100 نقطة هنا بناءً على طلبك، لكي تخسر الأسرة نقاط الطالب المقصي تماماً)
+            
+            # 2. أخذ نقاط الطالب المقصي كاملة وتوزيعها بالتساوي على طلاب المجموعة المستهدفة (الخصم) فقط
             target_students = data["groups"][target_group]
             points_to_distribute = elim_data["points"]
             
@@ -178,7 +172,7 @@ with tab1:
                     ts["points"] = round(ts["points"] + share, 1)
                     ts["custom"] = True
             
-            # 4. تسجيل النقاط المكتسبة في عداد المجموعة الفائزة
+            # 3. تسجيل النقاط المكتسبة للمجموعة الفائزة في الإحصائيات
             data["gained"][target_group] = round(data["gained"].get(target_group, 0) + points_to_distribute, 1)
             
             save_data(data)
