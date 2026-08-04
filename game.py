@@ -7,11 +7,28 @@ st.set_page_config(page_title="رواد القرآن - المسابقات الت
 DATA_FILE = "league_data.json"
 LOGO_PATH = "logo.png"
 
+# هيكل البيانات المستقل تماماً لكل جولة على حدة
+DEFAULT_ROUNDS_DATA = {
+    "الجولة 1": {
+        "groups": {g: [] for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]},
+        "eliminated": [],
+        "gained": {g: 0 for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]}
+    },
+    "الجولة 2": {
+        "groups": {g: [] for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]},
+        "eliminated": [],
+        "gained": {g: 0 for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]}
+    },
+    "الجولة 3": {
+        "groups": {g: [] for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]},
+        "eliminated": [],
+        "gained": {g: 0 for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]}
+    }
+}
+
 DEFAULT_DATA = {
     "round": "الجولة 1",
-    "groups": {g: [] for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]},
-    "eliminated": [],
-    "gained": {g: 0 for g in ["تبوك", "مؤتة", "خيبر", "اليرموك", "الخندق", "القادسية", "أحد", "حطين"]}
+    "rounds_data": DEFAULT_ROUNDS_DATA
 }
 
 def load_data():
@@ -22,8 +39,11 @@ def load_data():
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             d = json.load(f)
-            if "gained" not in d:
-                d["gained"] = {g: 0 for g in DEFAULT_DATA["groups"]}
+            if "rounds_data" not in d:
+                return DEFAULT_DATA
+            for r_name in DEFAULT_ROUNDS_DATA:
+                if r_name not in d["rounds_data"]:
+                    d["rounds_data"][r_name] = DEFAULT_ROUNDS_DATA[r_name]
             return d
     except:
         return DEFAULT_DATA
@@ -33,6 +53,7 @@ def save_data(data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 data = load_data()
+current_round = data.get("round", "الجولة 1")
 
 # --- عرض الشعار في الأعلى ---
 if os.path.exists(LOGO_PATH):
@@ -60,9 +81,9 @@ if st.sidebar.button("🔄 تحديث الشاشة"):
 # --- زر إعادة الضبط الشامل ---
 if is_teacher:
     st.sidebar.write("### ⚙️ إعدادات التحكم")
-    if st.sidebar.button("⚠️ إعادة ضبط اللعبة بالكامل", type="primary"):
+    if st.sidebar.button("⚠️ إعادة ضبط جميع الجولات بالكامل", type="primary"):
         save_data(DEFAULT_DATA)
-        st.sidebar.success("تمت إعادة ضبط اللعبة وتصفيرها بنجاح! 🔄")
+        st.sidebar.success("تمت إعادة ضبط كافة الجولات وتصفيرها بنجاح! 🔄")
         st.rerun()
 
 # مواجهات الجولات
@@ -73,24 +94,24 @@ rounds_info = {
 }
 
 if is_teacher:
-    selected_round = st.selectbox("اختر الجولة الحالية:", list(rounds_info.keys()), index=list(rounds_info.keys()).index(data.get("round", "الجولة 1")))
-    # عند تغيير الجولة من قبل المعلم، يتم تصفير أسماء الطلاب والمقصيين والنقاط لبدء جولة جديدة نظيفة تماماً
-    if selected_round != data.get("round"):
+    selected_round = st.selectbox("اختر الجولة الحالية:", list(rounds_info.keys()), index=list(rounds_info.keys()).index(current_round))
+    # عند تغيير الجولة، يتم حفظ الحالة الحالية كما هي والانتقال لبيانات الجولة الأخرى المحفوظة مسبقاً
+    if selected_round != current_round:
         data["round"] = selected_round
-        data["groups"] = {g: [] for g in DEFAULT_DATA["groups"]}
-        data["eliminated"] = []
-        data["gained"] = {g: 0 for g in DEFAULT_DATA["groups"]}
         save_data(data)
-        st.success(f"تم الانتقال إلى {selected_round} وتصفير أسماء المجموعات تلقائياً!")
+        st.success(f"تم الانتقال إلى {selected_round} بنجاح (بيانات الجولات الأخرى محفوظة كما هي)!")
         st.rerun()
 else:
-    st.info(f"🔥 **{data['round']}:** {rounds_info[data['round']]}")
+    st.info(f"🔥 **{current_round}:** {rounds_info[current_round]}")
+
+# استدعاء بيانات الجولة النشطة حالياً بعد أي تحديث
+current_round_data = data["rounds_data"][current_round]
 
 tab1, tab2 = st.tabs(["⚔️ الفرق والمجموعات", "🚫 المقصيين والإحصائيات"])
 
 with tab1:
     cols = st.columns(4)
-    group_names = list(data["groups"].keys())
+    group_names = list(current_round_data["groups"].keys())
     
     for idx, g_name in enumerate(group_names):
         with cols[idx % 4]:
@@ -100,18 +121,18 @@ with tab1:
                 s_name = st.text_input("اسم الطالب الجديد", key=f"in_{g_name}")
                 btn_add = st.form_submit_button("+ تسجيل الاسم")
                 if btn_add and s_name.strip():
-                    data["groups"][g_name].append({"name": s_name.strip(), "points": 0, "custom": False})
-                    total = len(data["groups"][g_name])
+                    current_round_data["groups"][g_name].append({"name": s_name.strip(), "points": 0, "custom": False})
+                    total = len(current_round_data["groups"][g_name])
                     if total > 0:
                         base_p = round(100 / total, 1)
-                        for s in data["groups"][g_name]:
+                        for s in current_round_data["groups"][g_name]:
                             if not s.get("custom", False):
                                 s["points"] = base_p
                     save_data(data)
                     st.rerun()
 
             st.write("---")
-            for s_idx, student in enumerate(data["groups"][g_name]):
+            for s_idx, student in enumerate(current_round_data["groups"][g_name]):
                 st.write(f"• **{student['name']}** ({student['points']} ن)")
                 
                 if is_teacher:
@@ -134,40 +155,38 @@ with tab1:
                         }
                         st.rerun()
                     if c4.button("❌", key=f"del_{g_name}_{s_idx}", help="إلغاء الطالب المضاف بالخطأ بدون خصم نقاط"):
-                        data["groups"][g_name].pop(s_idx)
-                        total = len(data["groups"][g_name])
+                        current_round_data["groups"][g_name].pop(s_idx)
+                        total = len(current_round_data["groups"][g_name])
                         if total > 0:
                             base_p = round(100 / total, 1)
-                            for s in data["groups"][g_name]:
+                            for s in current_round_data["groups"][g_name]:
                                 if not s.get("custom", False):
                                     s["points"] = base_p
                         save_data(data)
                         st.rerun()
 
-    # --- نافذة الإقصاء وتحويل النقاط ---
+    # --- نافذة الإقصاء وتحويل النقاط للجولة الحالية فقط ---
     if is_teacher and 'pending_elimination' in st.session_state and st.session_state.pending_elimination:
         pending = st.session_state.pending_elimination
         elim_student = pending["student"]
         src_group = pending["group"]
         
         st.write("---")
-        st.warning(f"⚠️ جاري إقصاء الطالب **{elim_student['name']}** من أسرة ({src_group}) ولديه ({elim_student['points']} نقطة).")
+        st.warning(f"⚠️ جاري إقصاء الطالب **{elim_student['name']}** من أسرة ({src_group}) ولديه ({elim_student['points']} نقطة) في {current_round}.")
         
         target_group = st.selectbox("اختر المجموعة الفائزة (الخصم) لتوزيع نقاط الطالب المقصي عليها بالكامل بالتساوي:", [g for g in group_names if g != src_group])
         
         c_confirm, c_cancel = st.columns(2)
         if c_confirm.button("✅ تأكيد الإقصاء وتحويل النقاط للخصم"):
-            # 1. إزالة الطالب وتسجيله مع تحديد اسم الجولة الحالية
-            elim_data = data["groups"][src_group].pop(pending["index"])
-            data["eliminated"].append({
-                "الجولة": data["round"],
+            elim_data = current_round_data["groups"][src_group].pop(pending["index"])
+            current_round_data["eliminated"].append({
+                "الجولة": current_round,
                 "اسم الطالب": elim_data["name"], 
                 "المجموعة": src_group, 
                 "النقاط المسحوبة": elim_data["points"]
             })
             
-            # 2. توزيع النقاط على المجموعة الفائزة (الخصم)
-            target_students = data["groups"][target_group]
+            target_students = current_round_data["groups"][target_group]
             points_to_distribute = elim_data["points"]
             
             if target_students and points_to_distribute > 0:
@@ -176,8 +195,7 @@ with tab1:
                     ts["points"] = round(ts["points"] + share, 1)
                     ts["custom"] = True
             
-            # 3. تسجيل النقاط المكتسبة
-            data["gained"][target_group] = round(data["gained"].get(target_group, 0) + points_to_distribute, 1)
+            current_round_data["gained"][target_group] = round(current_round_data["gained"].get(target_group, 0) + points_to_distribute, 1)
             
             save_data(data)
             st.session_state.pending_elimination = None
@@ -188,13 +206,16 @@ with tab1:
             st.rerun()
 
 with tab2:
-    st.subheader("📊 إحصائيات النقاط المفقودة والمكتسبة لكل مجموعة")
+    st.subheader(f"📊 إحصائيات النقاط المفقودة والمكتسبة لكل مجموعة في ({current_round})")
     
     lost_totals = {g: 0 for g in group_names}
-    for item in data.get("eliminated", []):
-        lost_totals[item["المجموعة"]] += item["النقاط المسحوبة"]
+    for item in current_round_data.get("eliminated", []):
+        group_key = item.get("المجموعة") or item.get("group")
+        points_key = item.get("النقاط المسحوبة") if "النقاط المسحوبة" in item else item.get("points", 0)
+        if group_key in lost_totals:
+            lost_totals[group_key] += points_key
     
-    gained_totals = data.get("gained", {g: 0 for g in group_names})
+    gained_totals = current_round_data.get("gained", {g: 0 for g in group_names})
 
     stat_cols = st.columns(4)
     for idx, g in enumerate(group_names):
@@ -206,8 +227,8 @@ with tab2:
             st.metric("🟢 المكتسبة", f"{gained_val} ن")
             st.write("---")
 
-    st.subheader("🚫 قائمة الطلاب المقصيين")
-    if data.get("eliminated"):
-        st.table(data.get("eliminated"))
+    st.subheader(f"🚫 قائمة الطلاب المقصيين في ({current_round})")
+    if current_round_data.get("eliminated"):
+        st.table(current_round_data.get("eliminated"))
     else:
         st.write("لا يوجد مقصيين حالياً في هذه الجولة.")
