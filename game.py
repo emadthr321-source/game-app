@@ -53,15 +53,14 @@ st.sidebar.write("---")
 if st.sidebar.button("🔄 تحديث الشاشة"):
     st.rerun()
 
-# --- زر إعادة الضبط الشامل للمعلم ---
+# --- زر إعادة الضبط الشامل المحدث والمضمون ---
 if is_teacher:
     st.sidebar.write("### ⚙️ إعدادات التحكم")
     if st.sidebar.button("⚠️ إعادة ضبط اللعبة بالكامل", type="primary"):
-        if st.sidebar.checkbox("تأكيد رغبتك في مسح وتصفير جميع البيانات؟"):
-            if os.path.exists(DATA_FILE):
-                os.remove(DATA_FILE)
-            st.success("تمت إعادة ضبط اللعبة بنجاح!")
-            st.rerun()
+        # كتابة البيانات الافتراضية مباشرة لحذف كل شيء فوراً
+        save_data(DEFAULT_DATA)
+        st.sidebar.success("تمت إعادة ضبط اللعبة وتصفيرها بنجاح! 🔄")
+        st.rerun()
 
 # مواجهات الجولات
 rounds_info = {
@@ -108,7 +107,6 @@ with tab1:
                 st.write(f"• **{student['name']}** ({student['points']} ن)")
                 
                 if is_teacher:
-                    # تقسيم الأزرار بشكل متناسق (إضافة، خصم، إقصاء، حذف خطأ)
                     c1, c2, c3, c4 = st.columns(4)
                     if c1.button("➕", key=f"p_{g_name}_{s_idx}"):
                         student["points"] = round(student["points"] + 1, 1)
@@ -128,7 +126,6 @@ with tab1:
                         }
                         st.rerun()
                     if c4.button("❌", key=f"del_{g_name}_{s_idx}", help="إلغاء الطالب المضاف بالخطأ بدون خصم نقاط"):
-                        # حذف الطالب وإعادة توزيع النقاط المتبقية على باقي طلاب الأسرة بالتساوي
                         data["groups"][g_name].pop(s_idx)
                         total = len(data["groups"][g_name])
                         if total > 0:
@@ -159,7 +156,6 @@ with tab1:
                 "points": elim_data["points"]
             })
             
-            # إعادة حساب توزيع النقاط المتبقية للأسرة الأصلية
             total_src = len(data["groups"][src_group])
             if total_src > 0:
                 base_p = round(100 / total_src, 1)
@@ -167,7 +163,6 @@ with tab1:
                     if not s.get("custom", False):
                         s["points"] = base_p
 
-            # توزيع نقاط الطالب المقصي على الأسرة الفائزة
             target_students = data["groups"][target_group]
             if target_students and elim_data["points"] > 0:
                 bonus = round(elim_data["points"] / len(target_students), 1)
