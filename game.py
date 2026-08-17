@@ -2,10 +2,11 @@ import json
 import os
 import streamlit as st
 import pandas as pd
+import copy
 
 # --- إعدادات الصفحة ---
 st.set_page_config(
-    page_title="لعبة ترابيع - النظام الاحترافي", page_icon="🔲", layout="wide"
+    page_title="لعبة ترابيع الاحترافية", page_icon="🔲", layout="wide"
 )
 
 # --- تنسيق التصميم (Dark Glassmorphism & Custom Fonts) ---
@@ -22,17 +23,7 @@ st.markdown(
         background: linear-gradient(135deg, #2c1624 0%, #1a0c17 100%);
         color: #ffffff;
     }
-
-    /* تنسيق أزرار المربعات في اللوحة */
-    .grid-btn {
-        font-size: 18px !important;
-        font-weight: 700 !important;
-        border-radius: 12px !important;
-        padding: 10px !important;
-        transition: all 0.3s ease;
-    }
     
-    /* تأثير الزجاج المعتم للعناصر */
     .glass-card {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(10px);
@@ -55,20 +46,18 @@ st.markdown(
 GRID_ROWS = ["أ", "ب", "ج", "د", "هـ", "و", "ز", "ح", "ط", "ي"]
 GRID_COLS = list(range(1, 11))  # من 1 إلى 10
 
-# إعداد المجموعات وألوانها الرسمية
+# إعداد المجموعات وألوانها الرسمية حسب طلبك
 TEAMS = {
-    "الإخاء": {"color": "#00d2ff", "bg": "🔵", "score": 0},
-    "المحبة": {"color": "#ffffff", "bg": "⚪️", "score": 0},
-    "الوفاق": {"color": "#ff4d4d", "bg": "🔴", "score": 0},
-    "الوصال": {"color": "#333333", "bg": "⚫️", "score": 0},
+    "الإخاء": {"color": "#00d2ff", "bg": "🔵", "name_ar": "الإخاء"},
+    "المحبة": {"color": "#ffffff", "bg": "⚪️", "name_ar": "المحبة"},
+    "الوفاق": {"color": "#ff4d4d", "bg": "🔴", "name_ar": "الوفاق"},
+    "الوصال": {"color": "#555555", "bg": "⚫️", "name_ar": "الوصال"},
 }
 
 if "board" not in st.session_state:
-    # تخزين لون/اسم المجموعة المسيطرة على كل مربع
     st.session_state.board = {f"{r}{c}": None for r in GRID_ROWS for c in GRID_COLS}
 
 if "history" not in st.session_state:
-    # قائمة لحفظ الخطوات بهدف التراجع (Undo)
     st.session_state.history = []
 
 if "current_team_idx" not in st.session_state:
@@ -83,28 +72,26 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    "<p style='text-align: center; font-size: 1.2rem; color: #d8b4fe;'>استحوذ على أكبر قدر من المربعات، كل مربع يمنحك 4 مربعات إضافية (+)!</p>",
+    "<p style='text-align: center; font-size: 1.2rem; color: #d8b4fe;'>قاعدة الاستحواذ (+): كل مربع تختاره يمنحك 4 مربعات إضافية حوله لتصبح 5 مربعات!</p>",
     unsafe_allow_html=True,
 )
 
-# --- الشريط الجانبي أو لوحة التحكم الجانبية لإدارة الدور والمجموعات ---
 col_control, col_board = st.columns([1, 3])
 
+# --- لوحة التحكم الجانبية ---
 with col_control:
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
     st.markdown("### 📊 لوحة التحكم والمجموعات")
 
-    # عرض الدور الحالي
     current_info = TEAMS[current_team_name]
     st.markdown(
-        f"**دور الفريق الحالي:** <span style='color: {current_info['color']}; font-size: 1.5rem; font-weight: bold;'>{current_info['bg']} {current_team_name}</span>",
+        f"**دور الأسرة الحالية:** <span style='color: {current_info['color']}; font-size: 1.4rem; font-weight: bold;'>{current_info['bg']} {current_team_name}</span>",
         unsafe_allow_html=True,
     )
 
     st.markdown("---")
-    st.markdown("#### 🏆 النقاط الحالية:")
+    st.markdown("#### 🏆 النقاط (المربعات المسيطر عليها):")
 
-    # حساب النقاط بناءً على المربعات المسيطر عليها
     team_scores = {t: 0 for t in TEAMS}
     for cell, owner in st.session_state.board.items():
         if owner in team_scores:
@@ -120,18 +107,18 @@ with col_control:
     st.markdown("---")
 
     # زر التراجع عن آخر خطوة (Undo)
-    if st.button("↩️ تراجع عن الخطوة السابقة", use_container_width=True):
+    if st.button("↩️ تراجع خطوة للخلف", use_container_width=True):
         if st.session_state.history:
             last_state = st.session_state.history.pop()
             st.session_state.board = last_state["board"]
             st.session_state.current_team_idx = last_state["team_idx"]
-            st.success("تم التراجع عن آخر خطوة بنجاح!")
+            st.success("تم التراجع بنجاح!")
             st.rerun()
         else:
             st.warning("لا توجد خطوات للتراجع عنها!")
 
-    # زر إعادة ضبط اللعبة
-    if st.button("🔄 إعادة ضبط اللعبة", use_container_width=True):
+    # زر إعادة الضبط
+    if st.button("🔄 إعادة ضبط اللوحة", use_container_width=True):
         st.session_state.board = {
             f"{r}{c}": None for r in GRID_ROWS for c in GRID_COLS
         }
@@ -144,12 +131,12 @@ with col_control:
 # --- لوحة اللعب (Grid) ---
 with col_board:
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    st.markdown("### 🔲 لوحة المربعات (اضغط على المربع للاستحواذ)")
+    st.markdown("### 🔲 لوحة المربعات (نظام الاستحواذ التلقائي)")
 
-    # رسم الأعمدة كأرقام في الأعلى
+    # رأس الأعمدة
     cols_ui = st.columns(len(GRID_COLS) + 1)
     cols_ui[0].markdown(
-        "<p style='text-align:center; font-weight:bold;'>الصف/العمود</p>",
+        "<p style='text-align:center; font-weight:bold;'>ج/ص</p>",
         unsafe_allow_html=True,
     )
     for idx, c in enumerate(GRID_COLS):
@@ -158,36 +145,30 @@ with col_board:
             unsafe_allow_html=True,
         )
 
-    # رسم الصفوف والمربعات
-    for r in GRID_ROWS:
+    # صفوف اللوحة
+    for r_idx, r in enumerate(GRID_ROWS):
         row_cols = st.columns(len(GRID_COLS) + 1)
         row_cols[0].markdown(
             f"<p style='text-align:center; font-weight:bold; font-size:1.2rem; color:#f3e8ff;'>{r}</p>",
             unsafe_allow_html=True,
         )
 
-        for idx, c in enumerate(GRID_COLS):
+        for c_idx, c in enumerate(GRID_COLS):
             cell_key = f"{r}{c}"
             owner = st.session_state.board[cell_key]
 
-            # تحديد لون المربع بناءً على المجموعة المالكة أو الافتراضي
+            # تلوين المربع بناءً على الأسرة المسيطرة
             if owner and owner in TEAMS:
                 team_color = TEAMS[owner]["color"]
                 btn_label = f"{TEAMS[owner]['bg']}"
-                # تلوين الخلفية والزر بناءً على الفريق
-                button_style = f"background-color: {team_color}; color: #000; border: 2px solid #fff;"
             else:
-                button_style = "background-color: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2);"
                 btn_label = f"{cell_key}"
 
-            # استخدام زر لكل مربع
-            with row_cols[idx + 1]:
+            with row_cols[c_idx + 1]:
                 if st.button(
                     btn_label, key=f"btn_{cell_key}", use_container_width=True
                 ):
-                    # حفظ الحالة الحالية في الـ history قبل التغيير (لأجل الـ Undo)
-                    import copy
-
+                    # حفظ الحالة الحالية للـ Undo
                     st.session_state.history.append(
                         {
                             "board": copy.deepcopy(st.session_state.board),
@@ -195,24 +176,28 @@ with col_board:
                         }
                     )
 
-                    # تطبيق الاستحواذ على المربع الأساسي ومحيطه (قاعدة + 4 مربعات أو حسب اللعبة)
-                    # هنا يتم تغيير لون المربع المختار فوراً للمجموعة الحالية
-                    st.session_state.board[cell_key] = current_team_name
+                    # تحديد المربعات الخمسة (المربع الأساسي + الأربعة المجاورة على شكل +)
+                    target_cells = [cell_key]  # المربع الأساسي
 
-                    # تطبيق ميزة الاستحواذ المتقاطع (+) للمربعات المجاورة (أعلى، أسفل، يمين، يسار) لو رغبت:
-                    neighbors = [
-                        (
-                            GRID_ROWS[GRID_ROWS.index(r) - 1]
-                            if GRID_ROWS.index(r) > 0
-                            else None
-                        ),
-                        (
-                            GRID_ROWS[GRID_ROWS.index(r) + 1]
-                            if GRID_ROWS.index(r) < len(GRID_ROWS) - 1
-                            else None
-                        ),
-                    ]
-                    # تفعيل الدور للفريق التالي تلقائياً
+                    # إضافة المجاورة (أعلى، أسفل، يمين، يسار إن وجدت ضمن الحدود)
+                    # الأعلى
+                    if r_idx > 0:
+                        target_cells.append(f"{GRID_ROWS[r_idx - 1]}{c}")
+                    # الأسفل
+                    if r_idx < len(GRID_ROWS) - 1:
+                        target_cells.append(f"{GRID_ROWS[r_idx + 1]}{c}")
+                    # اليسار (العمود السابق)
+                    if c_idx > 0:
+                        target_cells.append(f"{r}{GRID_COLS[c_idx - 1]}")
+                    # اليمين (العمود اللاحق)
+                    if c_idx < len(GRID_COLS) - 1:
+                        target_cells.append(f"{r}{GRID_COLS[c_idx + 1]}")
+
+                    # تطبيق التلطيخ/الاستحواذ للمجموعة الحالية على المربعات المشمولة
+                    for target in target_cells:
+                        st.session_state.board[target] = current_team_name
+
+                    # انتقال الدور تلقائياً للأسرة التالية
                     st.session_state.current_team_idx = (
                         st.session_state.current_team_idx + 1
                     ) % len(TEAMS)
