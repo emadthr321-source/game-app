@@ -54,7 +54,7 @@ if "grid" not in st.session_state:
 if "teams" not in st.session_state:
     st.session_state.teams = {
         "الإخاء": {"score": 0, "color": "#2980b9"},   # أزرق
-        "المحبة": {"score": 0, "color": "#ecf0f1"},  # أبيض (النص سيظهر داكناً ليتناسب معه)
+        "المحبة": {"score": 0, "color": "#ecf0f1"},  # أبيض
         "الوفاق": {"score": 0, "color": "#c0392b"},  # أحمر
         "الوصال": {"score": 0, "color": "#111111"}   # أسود
     }
@@ -118,9 +118,7 @@ with col_game:
             owner = cell["owner"]
             btn_label = f"{r}{c}" if not owner else "✓"
             
-            # حقن اللون بشكل مباشر لكل زر عبر حقن الـ CSS الديناميكي الخاص به
             cell_bg = cell["color"]
-            text_color_style = "color: black !important;" if (owner == "المحبة") else "color: white !important;"
             
             st.markdown(f"""
                 <style>
@@ -155,9 +153,9 @@ with col_game:
                         "color": team_color
                     })
                 
-                # إعادة حساب النقاط
+                # إعادة حساب النقاط (مصحوب المسافة البادئة الصحيحة)
                 for t in st.session_state.teams:
-                st.session_state.teams[t]["score"] = sum(1 for v in st.session_state.grid.values() if v["owner"] == t)
+                    st.session_state.teams[t]["score"] = sum(1 for v in st.session_state.grid.values() if v["owner"] == t)
                 
                 # تدوير الدور للمجموعة التالية
                 team_list = list(st.session_state.teams.keys())
