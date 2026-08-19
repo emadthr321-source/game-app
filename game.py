@@ -3,6 +3,7 @@ import copy
 
 st.set_page_config(page_title="لعبة ترابيع الماسية", page_icon="♦️", layout="wide")
 
+# تصميم المجموعات والألوان
 TEAMS = {
     "الإخاء": {"color": "#2980b9", "text": "white"},   # أزرق
     "المحبة": {"color": "#ecf0f1", "text": "black"},  # أبيض
@@ -12,6 +13,7 @@ TEAMS = {
 
 rows = ["أ", "ب", "ج", "د", "هـ", "و", "ز", "ح", "ط", "ي"]
 
+# تهيئة الحالة
 if "grid" not in st.session_state:
     st.session_state.grid = {
         (r, c): {"owner": None, "color": "rgba(255, 255, 255, 0.1)", "text": "white"} 
@@ -22,7 +24,46 @@ if "grid" not in st.session_state:
 if "current_team" not in st.session_state:
     st.session_state.current_team = list(TEAMS.keys())[0]
 
-st.title("♦️ لعبة ترابيع - النسخة المستقرة والمتلاصقة")
+# التعامل مع الضغط على المعين عبر الـ Query Params أو الأزرار المصغرة
+query_params = st.query_params
+if "click" in query_params:
+    clicked_cell = query_params["click"]
+    r, c_str = clicked_cell[0], clicked_cell[1:]
+    c = int(c_str)
+    
+    # حفظ التاريخ للتراجع
+    st.session_state.history.append({
+        "grid": copy.deepcopy(st.session_state.grid),
+        "team": st.session_state.current_team
+    })
+    
+    current = st.session_state.current_team
+    team_info = TEAMS[current]
+    
+    # قاعدة التمدد (+)
+    coords = [(r, c)]
+    r_idx = rows.index(r)
+    if r_idx > 0: coords.append((rows[r_idx-1], c))
+    if r_idx < len(rows)-1: coords.append((rows[r_idx+1], c))
+    if c > 1: coords.append((r, c-1))
+    if c < 10: coords.append((r, c+1))
+    
+    for co in coords:
+        st.session_state.grid[co].update({
+            "owner": current,
+            "color": team_info["color"],
+            "text": team_info["text"]
+        })
+    
+    # تدوير الدور
+    team_list = list(TEAMS.keys())
+    st.session_state.current_team = team_list[(team_list.index(current) + 1) % len(team_list)]
+    
+    # مسح البارامتر وإعادة التحميل
+    st.query_params.clear()
+    st.rerun()
+
+st.title("♦️ لعبة ترابيع - النسخة المتلاصقة بالكامل")
 st.markdown("---")
 
 col_sidebar, col_game = st.columns([1, 3])
@@ -30,6 +71,7 @@ col_sidebar, col_game = st.columns([1, 3])
 with col_sidebar:
     st.subheader("📊 لوحة المجموعات")
     for team, data in TEAMS.items():
+        # حساب النقاط مباشرة
         score = sum(1 for v in st.session_state.grid.values() if v["owner"] == team)
         is_current = (team == st.session_state.current_team)
         border_glow = "border: 3px solid #f1c40f;" if is_current else f"border-left: 8px solid {data['color']}"
@@ -59,92 +101,71 @@ with col_sidebar:
         st.rerun()
 
 with col_game:
-    st.subheader("🎯 شبكة المعينات التفاعلية المتلاصقة")
+    st.subheader("🎯 شبكة المعينات المتلاصقة")
     
-    # استخدام نظام أزرار Streamlit المحسنة بتنسيق المعينات لضمان الأمان وعدم حدوث خطأ 400
-    st.markdown("""
+    # بناء شبكة HTML متلاصقة تماماً بدون مساحات لتوفير الشكل المطلوب بدقة
+    html_grid = """
     <style>
-    .stButton > button {
-        width: 48px !important;
-        height: 48px !important;
-        min-height: 48px !important;
-        padding: 0px !important;
+    .diamond-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+    }
+    .diamond-row {
+        display: flex;
+        gap: 2px;
+    }
+    .diamond-btn {
+        width: 45px;
+        height: 45px;
         transform: rotate(45deg);
         display: flex;
         justify-content: center;
         align-items: center;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 6px !important;
-        margin: 2px auto !important;
-    }
-    .stButton > button p, .stButton > button span {
-        transform: rotate(-45deg);
+        text-decoration: none;
         font-weight: bold;
-        font-size: 13px;
+        font-size: 14px;
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 4px;
+        transition: 0.2s;
+        margin: 6px;
     }
-    div[data-testid="column"] {
-        width: max-content !important;
-        flex: 1 !important;
-        min-width: unset !important;
-        padding: 0px !important;
+    .diamond-btn span {
+        transform: rotate(-45deg);
+    }
+    .diamond-btn:hover {
+        border-color: #f1c40f;
+        transform: rotate(45deg) scale(1.05);
     }
     </style>
-    """, unsafe_allow_html=True)
-
-    # رأس الأعمدة
-    cols_header = st.columns(11)
-    cols_header[0].markdown("<div style='text-align: center; font-weight: bold;'>#</div>", unsafe_allow_html=True)
+    <div class="diamond-container">
+    """
+    
+    # رأس الأعمدة أرقام
+    html_grid += '<div class="diamond-row">'
+    html_grid += '<div style="width:45px; height:45px; display:flex; align-items:center; justify-content:center; font-weight:bold;">#</div>'
     for c in range(1, 11):
-        cols_header[c].markdown(f"<div style='text-align: center; font-weight: bold;'>{c}</div>", unsafe_allow_html=True)
+        html_grid += f'<div style="width:45px; height:45px; display:flex; align-items:center; justify-content:center; font-weight:bold;">{c}</div>'
+    html_grid += '</div>'
 
-    # رسم الشبكة بأزرار امنة ومتلاصقة
     for r in rows:
-        row_cols = st.columns(11)
-        row_cols[0].markdown(f"<div style='text-align: center; font-weight: bold; padding-top: 10px;'>{r}</div>", unsafe_allow_html=True)
-        for i, c in enumerate(range(1, 11)):
+        html_grid += '<div class="diamond-row">'
+        # حرف الصف
+        html_grid += f'<div style="width:45px; height:45px; display:flex; align-items:center; justify-content:center; font-weight:bold;">{r}</div>'
+        for c in range(1, 11):
             cell = st.session_state.grid[(r, c)]
-            owner = cell["owner"]
-            btn_label = f"{r}{c}" if not owner else "✓"
-            
-            cell_bg = cell["color"]
+            bg = cell["color"]
             txt_color = cell["text"]
+            label = f"{r}{c}" if not cell["owner"] else "✓"
             
-            # حقن لون الخلفية والنص مباشرة لكل معين
-            st.markdown(f"""
-                <style>
-                button[key="btn_{r}_{c}"] {{
-                    background-color: {cell_bg} !important;
-                    color: {txt_color} !important;
-                }}
-                </style>
-            """, unsafe_allow_html=True)
-
-            if row_cols[i+1].button(btn_label, key=f"btn_{r}_{c}", use_container_width=True):
-                # حفظ الحالة للتراجع
-                st.session_state.history.append({
-                    "grid": copy.deepcopy(st.session_state.grid),
-                    "team": st.session_state.current_team
-                })
-                
-                current = st.session_state.current_team
-                team_info = TEAMS[current]
-                
-                # قاعدة التمدد (+)
-                coords = [(r, c)]
-                r_idx = rows.index(r)
-                if r_idx > 0: coords.append((rows[r_idx-1], c))
-                if r_idx < len(rows)-1: coords.append((rows[r_idx+1], c))
-                if c > 1: coords.append((r, c-1))
-                if c < 10: coords.append((r, c+1))
-                
-                for co in coords:
-                    st.session_state.grid[co].update({
-                        "owner": current,
-                        "color": team_info["color"],
-                        "text": team_info["text"]
-                    })
-                
-                # تدوير الدور للمجموعة التالية
-                team_list = list(TEAMS.keys())
-                st.session_state.current_team = team_list[(team_list.index(current) + 1) % len(team_list)]
-                st.rerun()
+            html_grid += f'''
+            <a href="?click={r}{c}" class="diamond-btn" style="background-color: {bg}; color: {txt_color};">
+                <span style="color: {txt_color};">{label}</span>
+            </a>
+            '''
+        html_grid += '</div>'
+    
+    html_grid += "</div>"
+    
+    st.markdown(html_grid, unsafe_allow_html=True)
