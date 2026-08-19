@@ -22,11 +22,10 @@ st.markdown(
 GRID_ROWS = ["أ", "ب", "ج", "د", "هـ", "و", "ز", "ح", "ط", "ي"]
 GRID_COLS = list(range(1, 11))
 
+# تحديث الأسر لتصبح: الهمة والعطاء فقط
 TEAMS = {
-    "الإخاء": {"color": "#00d2ff", "bg": "🔵"},
-    "المحبة": {"color": "#ffffff", "bg": "⚪️"},
-    "الوفاق": {"color": "#ff4d4d", "bg": "🔴"},
-    "الوصال": {"color": "#555555", "bg": "⚫️"},
+    "الهمة": {"color": "#00d2ff", "bg": "🔵"},
+    "العطاء": {"color": "#ff4d4d", "bg": "🔴"},
 }
 
 if "board" not in st.session_state:
@@ -43,7 +42,7 @@ with col_control:
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
     st.markdown("### 🛠️ لوحة التحكم")
     
-    # 📌 القائمة المسندلة لاختيار الأسرة بوضوح تام
+    # القائمة المسندلة لاختيار أسرة الهمة أو العطاء
     selected_team = st.selectbox(
         "اختر الأسرة المشاركة حالياً:",
         options=list(TEAMS.keys()),
@@ -56,7 +55,7 @@ with col_control:
     for owner in st.session_state.board.values():
         if owner in team_scores: team_scores[owner] += 1
     for t, info in TEAMS.items():
-        st.markdown(f"- <span style='color: {info['color']};'>{info['bg']} {t}</span>: **{team_scores[t]}** مربعات", unsafe_allow_html=True)
+        st.markdown(f"- <span style='color: {info['color']};'>{info['bg']} أسرة {t}</span>: **{team_scores[t]}** مربعات", unsafe_allow_html=True)
     
     st.markdown("---")
     if st.button("↩️ تراجع عن آخر خطوة", use_container_width=True):
@@ -72,7 +71,7 @@ with col_control:
 
 with col_board:
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    st.markdown(f"### 📍 لوحة اللعب - دور: <span style='color: {TEAMS[selected_team]['color']}'>{TEAMS[selected_team]['bg']} {selected_team}</span>", unsafe_allow_html=True)
+    st.markdown(f"### 📍 لوحة اللعب - دور: <span style='color: {TEAMS[selected_team]['color']}'>{TEAMS[selected_team]['bg']} أسرة {selected_team}</span>", unsafe_allow_html=True)
     
     # رأس الأعمدة (أرقام)
     cols_header = st.columns(len(GRID_COLS) + 1)
