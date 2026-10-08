@@ -22,11 +22,12 @@ st.markdown(
 GRID_ROWS = ["أ", "ب", "ج", "د", "هـ", "و", "ز", "ح", "ط", "ي"]
 GRID_COLS = list(range(1, 11))
 
-# تحديث الأسر لتصبح: الهمة والعطاء فقط
-TEAMS = {
-    "الهمة": {"color": "#00d2ff", "bg": "🔵"},
-    "العطاء": {"color": "#ff4d4d", "bg": "🔴"},
-}
+# تهيئة الفرق الافتراضية (الهمة والعطاء) في الـ Session State لتكون قابلة للتعديل والإضافة
+if "teams" not in st.session_state:
+    st.session_state.teams = {
+        "الهمة": {"color": "#00d2ff", "bg": "🔵"},
+        "العطاء": {"color": "#ff4d4d", "bg": "🔴"}
+    }
 
 if "board" not in st.session_state:
     st.session_state.board = {f"{r}{c}": None for r in GRID_ROWS for c in GRID_COLS}
@@ -40,28 +41,66 @@ col_control, col_board = st.columns([1, 3])
 
 with col_control:
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    st.markdown("### 🛠️ لوحة التحكم")
+    st.markdown("### 🛠️ لوحة التحكم والإدارة")
     
-    # القائمة المسندلة لاختيار أسرة الهمة أو العطاء
+    # 📌 قسم إضافة وتسمية فريق جديد
+    with st.expander("➕ إضافة أو تعديل الفرق"):
+        new_team_name = st.text_input("اسم الفريق الجديد:")
+        new_team_color = st.color_picker("لون الفريق:", "#4CAF50")
+        new_team_bg = st.selectbox("رمز الفريق (رمز تعبيري):", ["🔵", "🔴", "🟡", "🟢", "🟣", "🟠", "⚪️", "⚫️", "⭐", "🔥"])
+        
+        if st.button("إضافة الفريق", use_container_width=True):
+            if new_team_name and new_team_name not in st.session_state.teams:
+                st.session_state.teams[new_team_name] = {"color": new_team_color, "bg": new_team_bg}
+                st.success(f"تم إضافة فريق '{new_team_name}' بنجاح!")
+                st.rerun()
+            elif new_team_name in st.session_state.teams:
+                st.warning("اسم الفريق موجود مسبقاً!")
+            else:
+                st.error("الرجاء إدخال اسم الفريق!")
+                
+        # خيار حذف فريق
+        if len(st.session_state.teams) > 1:
+            team_to_delete = st.selectbox("اختر فريقاً للحذف:", options=list(st.session_state.teams.keys()))
+            if st.button("حذف الفريق المختار", use_container_width=True):
+                del st.session_state.teams[team_to_delete]
+                # إزالة ملكية المربعات التابعة لهذا الفريق المنحذفة
+                for k in st.session_state.board:
+                    if st.session_state.board[k] == team_to_delete:
+                        st.session_state.board[k] = None
+                st.success("تم حذف الفريق بنجاح!")
+                st.rerun()
+
+    st.markdown("---")
+    
+    # التأكد من وجود فرق للاختيار منها
+    if not st.session_state.teams:
+        st.warning("الرجاء إضافة فريق واحد على الأقل للبدء!")
+        st.stop()
+
+    # القائمة المسندلة لاختيار الفريق المشاركة حالياً
     selected_team = st.selectbox(
-        "اختر الأسرة المشاركة حالياً:",
-        options=list(TEAMS.keys()),
-        format_func=lambda x: f"{TEAMS[x]['bg']} أسرة {x}"
+        "اختر الفريق المشارك حالياً:",
+        options=list(st.session_state.teams.keys()),
+        format_func=lambda x: f"{st.session_state.teams[x]['bg']} {x}"
     )
     
     st.markdown("---")
     st.markdown("#### 🏆 النقاط الحالية:")
-    team_scores = {t: 0 for t in TEAMS}
+    team_scores = {t: 0 for t in st.session_state.teams}
     for owner in st.session_state.board.values():
         if owner in team_scores: team_scores[owner] += 1
-    for t, info in TEAMS.items():
-        st.markdown(f"- <span style='color: {info['color']};'>{info['bg']} أسرة {t}</span>: **{team_scores[t]}** مربعات", unsafe_allow_html=True)
+        
+    for t, info in st.session_state.teams.items():
+        st.markdown(f"- <span style='color: {info['color']};'>{info['bg']} {t}</span>: **{team_scores[t]}** مربعات", unsafe_allow_html=True)
     
     st.markdown("---")
     if st.button("↩️ تراجع عن آخر خطوة", use_container_width=True):
         if st.session_state.history:
             st.session_state.board = st.session_state.history.pop()
             st.rerun()
+        else:
+            st.warning("لا توجد خطوات للتراجع عنها!")
     
     if st.button("🔄 إعادة ضبط اللعبة", use_container_width=True):
         st.session_state.board = {f"{r}{c}": None for r in GRID_ROWS for c in GRID_COLS}
@@ -71,7 +110,8 @@ with col_control:
 
 with col_board:
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    st.markdown(f"### 📍 لوحة اللعب - دور: <span style='color: {TEAMS[selected_team]['color']}'>{TEAMS[selected_team]['bg']} أسرة {selected_team}</span>", unsafe_allow_html=True)
+    current_team_info = st.session_state.teams[selected_team]
+    st.markdown(f"### 📍 لوحة اللعب - دور: <span style='color: {current_team_info['color']}'>{current_team_info['bg']} {selected_team}</span>", unsafe_allow_html=True)
     
     # رأس الأعمدة (أرقام)
     cols_header = st.columns(len(GRID_COLS) + 1)
@@ -88,8 +128,11 @@ with col_board:
             cell_key = f"{r}{c}"
             owner = st.session_state.board[cell_key]
             
-            # تحديد شكل الزر ولونه إذا كان مملوكاً
-            btn_label = TEAMS[owner]["bg"] if owner else f"{cell_key}"
+            # تحديد شكل الزر ولونه إذا كان مملوكاً لفريق موجود
+            if owner and owner in st.session_state.teams:
+                btn_label = st.session_state.teams[owner]["bg"]
+            else:
+                btn_label = f"{cell_key}"
             
             with row_cols[c_idx + 1]:
                 if st.button(btn_label, key=f"btn_{cell_key}", use_container_width=True):
@@ -103,7 +146,7 @@ with col_board:
                     if c_idx > 0: target_cells.append(f"{r}{GRID_COLS[c_idx-1]}")
                     if c_idx < len(GRID_COLS)-1: target_cells.append(f"{r}{GRID_COLS[c_idx+1]}")
                     
-                    # تلوين المربعات بالأسرة المختارة من القائمة المسندلة
+                    # تلوين المربعات بالفريق المختار من القائمة المسندلة
                     for target in target_cells:
                         st.session_state.board[target] = selected_team
                     st.rerun()
